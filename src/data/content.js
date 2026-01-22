@@ -1,6 +1,6 @@
 // 页面文案集中管理，便于后续维护与扩展
 export const navLinks = [
-  { label: "联系客服", href: "https://linux.do/u/nokrai/summary" }
+  { label: "联系客服", href: "https://linux.do/u/xtower/summary" }
 ];
 
 export const hero = {
@@ -38,5 +38,5 @@ export const steps = [
 
 export const footer = {
   text: "© 2026 LinuxDo 邀请码自助商店",
-  privacy: { label: "隐私协议", href: "#privacy" }
+  privacy: { label: "隐私协议", href: "/privacy" }
 };

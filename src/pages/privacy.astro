@@ -1,0 +1,91 @@
+---
+import "../styles/global.css";
+import { navLinks, footer } from "../data/content.js";
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>隐私协议 - LinuxDo 邀请码自助商店</title>
+    <meta
+      name="description"
+      content="LinuxDo 邀请码自助商店隐私协议说明"
+    />
+  </head>
+  <body>
+    <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-6 pb-16 pt-8">
+      <header class="flex items-center justify-between">
+        <a href="/" class="text-lg font-semibold text-[color:var(--text-title)] hover:text-[color:var(--brand-blue)] transition">
+          LinuxDo 商店
+        </a>
+        <nav class="flex gap-6 text-sm font-medium text-[color:var(--text-body)]">
+          {navLinks.map((link) => (
+            <a class="transition hover:text-[color:var(--brand-blue)]" href={link.href}>
+              {link.label}
+            </a>
+          ))}
+        </nav>
+      </header>
+
+      <main class="flex-1 mt-12">
+        <article class="prose prose-slate max-w-none text-[color:var(--text-body)]">
+          <h1 class="text-3xl font-semibold text-[color:var(--text-title)] mb-8">隐私协议</h1>
+          
+          <section class="mb-8">
+            <h2 class="text-xl font-semibold text-[color:var(--text-title)] mb-4">1. 信息收集</h2>
+            <p class="mb-4">
+              为了完成交易和订单处理，我们仅收集必要的最小化信息：
+            </p>
+            <ul class="list-disc pl-6 space-y-2">
+              <li>交易流水号（Trade No）：用于标识您的订单状态。</li>
+              <li>Linux Do 用户 ID（OpenID）：用于验证支付来源，我们不存储您的用户名或密码。</li>
+              <li>浏览器 Session Storage：仅用于在您支付过程中临时存储订单信息，以便支付完成后自动跳转。</li>
+            </ul>
+          </section>
+
+          <section class="mb-8">
+            <h2 class="text-xl font-semibold text-[color:var(--text-title)] mb-4">2. 信息使用</h2>
+            <p class="mb-4">
+              收集的信息仅用于以下用途：
+            </p>
+            <ul class="list-disc pl-6 space-y-2">
+              <li>验证支付状态并自动发放邀请码。</li>
+              <li>处理交易争议或售后咨询。</li>
+              <li>防止滥用和恶意攻击。</li>
+            </ul>
+          </section>
+
+          <section class="mb-8">
+            <h2 class="text-xl font-semibold text-[color:var(--text-title)] mb-4">3. 第三方服务</h2>
+            <p class="mb-4">
+              本站使用 <strong>Linux Do Connect</strong> 进行身份验证和支付处理。在您进行支付时，您将跳转至 Linux Do 官方页面，您的支付凭证和账户信息由 Linux Do 直接处理，本站无法获取您的敏感支付信息。
+            </p>
+          </section>
+
+          <section class="mb-8">
+            <h2 class="text-xl font-semibold text-[color:var(--text-title)] mb-4">4. 数据安全</h2>
+            <p class="mb-4">
+              我们承诺不会向任何无关第三方出售、出租或分享您的交易记录，除非法律法规要求或为了配合官方调查。
+            </p>
+          </section>
+
+          <section class="mb-8">
+            <h2 class="text-xl font-semibold text-[color:var(--text-title)] mb-4">5. 联系我们</h2>
+            <p class="mb-4">
+              如果您对本隐私协议有任何疑问，请通过页面顶部的“联系客服”链接与我们联系。
+            </p>
+          </section>
+        </article>
+      </main>
+
+      <footer class="mt-16 flex flex-col items-start justify-between gap-4 border-t border-[color:var(--border-soft)] pt-6 text-xs text-[color:var(--text-body)] md:flex-row md:items-center">
+        <span>{footer.text}</span>
+        <a class="transition hover:text-[color:var(--brand-blue)] font-semibold" href={footer.privacy.href}>
+          {footer.privacy.label}
+        </a>
+      </footer>
+    </div>
+  </body>
+</html>
