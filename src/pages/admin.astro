@@ -37,7 +37,9 @@ if (Astro.request.method === "POST") {
   try {
     const formData = await Astro.request.formData();
     const password = (formData.get("password") || "").trim();
-    const adminPassword = (import.meta.env.ADMIN_PASSWORD || "admin").trim();
+    const runtimePassword = Astro.locals.runtime?.env?.ADMIN_PASSWORD;
+    const buildPassword = import.meta.env.ADMIN_PASSWORD;
+    const adminPassword = (runtimePassword != null ? String(runtimePassword) : (buildPassword || "admin")).trim();
     const action = formData.get("action") || "import";
     
     console.log(`[Admin] Auth check: Input length ${password.length}, Env length ${adminPassword.length}`);
