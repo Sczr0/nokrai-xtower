@@ -4,6 +4,8 @@ export const GET = async ({ request, locals }) => {
   try {
     const url = new URL(request.url);
     const params = Object.fromEntries(url.searchParams);
+    const accept = request.headers.get("accept") || "";
+    const isBrowser = accept.includes("text/html");
     const runtimeKey = locals.runtime?.env?.LINUX_DO_CLIENT_SECRET;
     const buildKey = import.meta.env.LINUX_DO_CLIENT_SECRET;
     const key = runtimeKey != null ? String(runtimeKey) : buildKey;
@@ -37,11 +39,19 @@ export const GET = async ({ request, locals }) => {
     const calculatedSign = crypto.createHash('md5').update(signStr).digest('hex');
 
     if (calculatedSign !== sign) {
-        return new Response(JSON.stringify({ success: false, message: "Invalid signature" }), { status: 400 });
+        const outTradeNo = (params.out_trade_no || "").trim();
+        if (isBrowser && outTradeNo) {
+            return Response.redirect(`${url.origin}/callback?out_trade_no=${encodeURIComponent(outTradeNo)}`, 302);
+        }
+        return new Response("fail", { status: 400 });
     }
     
     const tradeStatus = params.trade_status;
     if (tradeStatus && tradeStatus !== "TRADE_SUCCESS") {
+        const outTradeNo = (params.out_trade_no || "").trim();
+        if (isBrowser && outTradeNo) {
+            return Response.redirect(`${url.origin}/callback?out_trade_no=${encodeURIComponent(outTradeNo)}`, 302);
+        }
         return new Response("fail", { status: 400 });
     }
 
