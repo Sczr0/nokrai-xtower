@@ -4,6 +4,11 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "main": "./dist/_worker.js/index.js",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
   "d1_databases": [
     {
       "binding": "DB",
