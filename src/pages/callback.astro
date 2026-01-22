@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 let verificationResult = { success: false, message: "正在验证..." };
 let inviteCode = "";
 let releaseReason = "";
+let refundMessage = "";
 
 try {
   let params = {};
@@ -45,6 +46,35 @@ try {
  
    console.log(`[Callback] Method: ${Astro.request.method}, URL: ${Astro.request.url}`);
    console.log("[Callback] Params:", params); 
+
+   const requestRefund = async ({ tradeNo, outTradeNo, money }) => {
+      if (!pid || !key || !tradeNo || !money) {
+         return "退款失败：缺少参数";
+      }
+
+      try {
+         const body = new URLSearchParams({
+            pid,
+            key,
+            trade_no: tradeNo,
+            money: String(money),
+            out_trade_no: outTradeNo || ""
+         });
+         const response = await fetch("https://credit.linux.do/epay/api.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body
+         });
+         const data = await response.json();
+         if (data.code === 1) {
+            return "库存不足，已发起退款";
+         }
+         return `库存不足，退款失败：${data.msg || "未知错误"}`;
+      } catch (err) {
+         console.error("Refund error:", err);
+         return "库存不足，退款请求失败";
+      }
+   };
 
    if (params.sign) {
       // Existing signature verification logic...
@@ -85,7 +115,12 @@ try {
                           await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(targetTradeNo, fallback.id).run();
                           inviteCode = fallback.code;
                       } else {
-                          inviteCode = `库存不足，请联系客服补货 (Ref: ${targetTradeNo}, DB: ${debugInfo})`;
+                          refundMessage = await requestRefund({
+                             tradeNo: params.trade_no || "",
+                             outTradeNo: targetTradeNo,
+                             money: params.money || ""
+                          });
+                          inviteCode = `${refundMessage} (Ref: ${targetTradeNo}, DB: ${debugInfo})`;
                       }
                   }
               } catch (dbErr) {
@@ -96,6 +131,7 @@ try {
               inviteCode = "LINUXDO-2026-WELCOME-VIP"; 
            }
       } else {
+          releaseReason = "签名验证失败";
           verificationResult = { success: false, message: "签名验证失败，请联系客服。" };
       }
    } else if (params.out_trade_no) {
@@ -113,13 +149,24 @@ try {
               const DB = Astro.locals.runtime?.env?.DB;
               if (DB) {
                  try {
-                     const { results } = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").all();
-                     if (results && results.length > 0) {
-                         const code = results[0].code;
-                         await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(results[0].id).run();
-                         inviteCode = code;
+                     const targetTradeNo = (params.out_trade_no || "").trim();
+                     const reserved = await DB.prepare("SELECT * FROM invite_codes WHERE trade_no = ?").bind(targetTradeNo).first();
+                     if (reserved) {
+                         await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(reserved.id).run();
+                         inviteCode = reserved.code;
                      } else {
-                         inviteCode = "库存不足，请联系客服补货";
+                         const fallback = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").first();
+                         if (fallback) {
+                             await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(targetTradeNo, fallback.id).run();
+                             inviteCode = fallback.code;
+                         } else {
+                             refundMessage = await requestRefund({
+                                tradeNo: data.trade_no || "",
+                                outTradeNo: targetTradeNo,
+                                money: data.money || ""
+                             });
+                             inviteCode = refundMessage;
+                         }
                      }
                  } catch (dbErr) {
                      console.error("DB Error:", dbErr);
