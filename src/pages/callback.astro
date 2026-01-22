@@ -66,7 +66,10 @@ try {
                resolvedMoney = data.money;
                orderStatus = data.status;
             } else {
-               return `库存不足，退款失败：${data.msg || "订单不存在或已完成"}`;
+               console.warn("Order query failed:", data);
+               // Try to proceed if we have params even if query failed?
+               // No, if query failed, we probably want to be careful.
+               return `库存不足，且无法获取订单信息（${data.msg || "未知错误"}），请联系客服退款。`;
             }
          }
 

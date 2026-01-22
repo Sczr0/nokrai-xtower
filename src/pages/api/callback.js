@@ -10,7 +10,11 @@ export const GET = async ({ request, locals }) => {
     const buildKey = import.meta.env.LINUX_DO_CLIENT_SECRET;
     const key = runtimeKey != null ? String(runtimeKey) : buildKey;
 
-    if (!key) {
+    const runtimePid = locals.runtime?.env?.LINUX_DO_CLIENT_ID;
+    const buildPid = import.meta.env.LINUX_DO_CLIENT_ID;
+    const pid = runtimePid != null ? String(runtimePid) : buildPid;
+
+    if (!key || !pid) {
         return new Response(JSON.stringify({ error: "Configuration error" }), { status: 500 });
     }
 
@@ -66,6 +70,30 @@ export const GET = async ({ request, locals }) => {
                 const fallback = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").first();
                 if (fallback) {
                     await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(outTradeNo, fallback.id).run();
+                } else {
+                    console.log(`Inventory shortage for order ${outTradeNo}, initiating refund...`);
+                    // Refund logic
+                    if (params.trade_no && params.money) {
+                        try {
+                             const refundRes = await fetch("https://credit.linux.do/epay/api.php", {
+                                 method: "POST",
+                                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                                 body: new URLSearchParams({
+                                     pid: pid,
+                                     key: key,
+                                     trade_no: params.trade_no,
+                                     money: params.money,
+                                     out_trade_no: outTradeNo
+                                 })
+                             });
+                             const refundData = await refundRes.json();
+                             console.log("Refund result:", refundData);
+                        } catch (err) {
+                             console.error("Refund failed:", err);
+                        }
+                    } else {
+                        console.error("Cannot refund: Missing trade_no or money in params");
+                    }
                 }
             }
         }
