@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 
 let verificationResult = { success: false, message: "正在验证..." };
 let inviteCode = "";
+let releaseReason = "";
 
 try {
   let params = {};
@@ -35,8 +36,12 @@ try {
    // We will pass a flag to the client side to check localStorage.
 
    
-   const key = (import.meta.env.LINUX_DO_CLIENT_SECRET || "").trim();
-   const pid = (import.meta.env.LINUX_DO_CLIENT_ID || "").trim();
+   const runtimeKey = Astro.locals.runtime?.env?.LINUX_DO_CLIENT_SECRET;
+   const runtimePid = Astro.locals.runtime?.env?.LINUX_DO_CLIENT_ID;
+   const buildKey = import.meta.env.LINUX_DO_CLIENT_SECRET;
+   const buildPid = import.meta.env.LINUX_DO_CLIENT_ID;
+   const key = (runtimeKey != null ? String(runtimeKey) : (buildKey || "")).trim();
+   const pid = (runtimePid != null ? String(runtimePid) : (buildPid || "")).trim();
  
    console.log(`[Callback] Method: ${Astro.request.method}, URL: ${Astro.request.url}`);
    console.log("[Callback] Params:", params); 
@@ -124,6 +129,7 @@ try {
                  inviteCode = "LINUXDO-2026-WELCOME-VIP";
               }
          } else {
+              releaseReason = data.code === 1 ? "订单未支付" : "订单不存在";
               verificationResult = { success: false, message: "订单未支付或不存在。" };
          }
        } catch (err) {
@@ -141,6 +147,14 @@ try {
            verificationResult = { success: false, message: "无效的请求参数: " + JSON.stringify(params) };
        }
    }
+ 
+ if (!verificationResult.success && releaseReason) {
+    const targetTradeNo = (params.out_trade_no || "").trim();
+    const DB = Astro.locals.runtime?.env?.DB;
+    if (DB && targetTradeNo) {
+        await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE trade_no = ? AND status = 'reserved'").bind(targetTradeNo).run();
+    }
+ }
  } catch (e) {
      verificationResult = { success: false, message: "验证过程发生错误: " + e.message };
  }

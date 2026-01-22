@@ -1,10 +1,12 @@
 import crypto from 'node:crypto';
 
-export const GET = async ({ request }) => {
+export const GET = async ({ request, locals }) => {
   try {
     const url = new URL(request.url);
     const params = Object.fromEntries(url.searchParams);
-    const key = import.meta.env.LINUX_DO_CLIENT_SECRET;
+    const runtimeKey = locals.runtime?.env?.LINUX_DO_CLIENT_SECRET;
+    const buildKey = import.meta.env.LINUX_DO_CLIENT_SECRET;
+    const key = runtimeKey != null ? String(runtimeKey) : buildKey;
 
     if (!key) {
         return new Response(JSON.stringify({ error: "Configuration error" }), { status: 500 });
