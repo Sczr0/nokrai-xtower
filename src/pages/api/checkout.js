@@ -3,8 +3,12 @@ import crypto from 'node:crypto';
 export const POST = async ({ request, locals }) => {
   try {
     // 1. Get configuration
-    const pid = (import.meta.env.LINUX_DO_CLIENT_ID || "").trim();
-    const key = (import.meta.env.LINUX_DO_CLIENT_SECRET || "").trim();
+    const runtimePid = locals.runtime?.env?.LINUX_DO_CLIENT_ID;
+    const runtimeKey = locals.runtime?.env?.LINUX_DO_CLIENT_SECRET;
+    const buildPid = import.meta.env.LINUX_DO_CLIENT_ID;
+    const buildKey = import.meta.env.LINUX_DO_CLIENT_SECRET;
+    const pid = (runtimePid != null ? String(runtimePid) : (buildPid || "")).trim();
+    const key = (runtimeKey != null ? String(runtimeKey) : (buildKey || "")).trim();
     
     if (!pid || !key) {
       return new Response(JSON.stringify({ error: "Missing configuration" }), { status: 500 });
