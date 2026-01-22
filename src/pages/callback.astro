@@ -75,6 +75,15 @@ try {
          return "库存不足，退款请求失败";
       }
    };
+ 
+   const markRefundResult = (message) => {
+      refundMessage = message;
+      if (message.includes("已发起退款")) {
+         verificationResult = { success: false, message: "支付成功但库存不足，已发起退款。" };
+      } else {
+         verificationResult = { success: false, message: message };
+      }
+   };
 
    if (params.sign) {
       // Existing signature verification logic...
@@ -120,6 +129,7 @@ try {
                              outTradeNo: targetTradeNo,
                              money: params.money || ""
                           });
+                          markRefundResult(refundMessage);
                           inviteCode = `${refundMessage} (Ref: ${targetTradeNo}, DB: ${debugInfo})`;
                       }
                   }
@@ -165,6 +175,7 @@ try {
                                 outTradeNo: targetTradeNo,
                                 money: data.money || ""
                              });
+                             markRefundResult(refundMessage);
                              inviteCode = refundMessage;
                          }
                      }

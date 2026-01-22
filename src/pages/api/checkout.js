@@ -24,10 +24,7 @@ export const POST = async ({ request, locals }) => {
     // 0. Check inventory and Reserve
     const DB = locals.runtime?.env?.DB;
     if (DB) {
-        // First, release any expired reservations (older than 30 minutes to be safe)
-        // await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE status = 'reserved' AND updated_at < datetime('now', '-10 minutes')").run();
-        // Temporary disable auto-release to debug "Inventory shortage" issue
-
+        await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE status = 'reserved' AND updated_at < datetime('now', '-30 minutes')").run();
 
         // Try to reserve a code
         const { meta } = await DB.prepare(`
