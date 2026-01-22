@@ -61,11 +61,19 @@ import { navLinks, hero, features, steps, footer } from "../data/content.js";
               const data = await response.json();
               
               if (data.error) {
-                alert('Error: ' + data.error);
-                if (btn) {
-                  btn.innerText = '重试';
-                  btn.removeAttribute('disabled');
-                  btn.classList.remove('opacity-75');
+                if (data.error.includes("Inventory shortage")) {
+                    alert('抱歉，当前库存不足，请联系客服补货后再试。');
+                    if (btn) {
+                        btn.innerText = '库存不足';
+                        // Keep disabled
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                    if (btn) {
+                        btn.innerText = '重试';
+                        btn.removeAttribute('disabled');
+                        btn.classList.remove('opacity-75');
+                    }
                 }
                 return;
               }

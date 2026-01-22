@@ -54,7 +54,36 @@ try {
  
       if (calculatedSign === sign) {
           verificationResult = { success: true, message: "支付验证成功！" };
-          inviteCode = "LINUXDO-2026-WELCOME-VIP"; 
+          
+          const DB = Astro.locals.runtime?.env?.DB;
+           if (DB) {
+              try {
+                  // 1. Try to find the reserved code for this order
+                  const { results } = await DB.prepare("SELECT * FROM invite_codes WHERE trade_no = ?").bind(params.out_trade_no).all();
+                  
+                  if (results && results.length > 0) {
+                      // Found reserved code
+                      const code = results[0].code;
+                      await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(results[0].id).run();
+                      inviteCode = code;
+                  } else {
+                      // Fallback: If reservation expired or missing (should be rare if paid within 10 mins)
+                      // Try to grab any unused code
+                      const fallback = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").first();
+                      if (fallback) {
+                          await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(params.out_trade_no, fallback.id).run();
+                          inviteCode = fallback.code;
+                      } else {
+                          inviteCode = "库存不足，请联系客服补货";
+                      }
+                  }
+              } catch (dbErr) {
+                  console.error("DB Error:", dbErr);
+                  inviteCode = "系统错误，请联系客服";
+              }
+           } else {
+              inviteCode = "LINUXDO-2026-WELCOME-VIP"; 
+           }
       } else {
           verificationResult = { success: false, message: "签名验证失败，请联系客服。" };
       }
@@ -69,7 +98,25 @@ try {
  
          if (data.code === 1 && data.status === 1) {
               verificationResult = { success: true, message: "支付验证成功！" };
-              inviteCode = "LINUXDO-2026-WELCOME-VIP";
+              
+              const DB = Astro.locals.runtime?.env?.DB;
+              if (DB) {
+                 try {
+                     const { results } = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").all();
+                     if (results && results.length > 0) {
+                         const code = results[0].code;
+                         await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(results[0].id).run();
+                         inviteCode = code;
+                     } else {
+                         inviteCode = "库存不足，请联系客服补货";
+                     }
+                 } catch (dbErr) {
+                     console.error("DB Error:", dbErr);
+                     inviteCode = "系统错误，请联系客服";
+                 }
+              } else {
+                 inviteCode = "LINUXDO-2026-WELCOME-VIP";
+              }
          } else {
               verificationResult = { success: false, message: "订单未支付或不存在。" };
          }

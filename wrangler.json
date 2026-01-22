@@ -1,0 +1,14 @@
+{
+  "name": "linuxdo-invite-shop",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "invite_codes",
+      "database_id": "23113b68-a6ef-4ea8-ad1d-f9c2522c7124"
+    }
+  ]
+}

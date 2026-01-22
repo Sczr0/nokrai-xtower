@@ -18,5 +18,8 @@
     "postcss": "latest",
     "tailwindcss": "3",
     "vitest": "latest"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.12"
   }
 }

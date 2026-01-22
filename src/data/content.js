@@ -1,7 +1,6 @@
 // 页面文案集中管理，便于后续维护与扩展
 export const navLinks = [
-  { label: "查询订单", href: "#order" },
-  { label: "联系客服", href: "#support" }
+  { label: "联系客服", href: "https://linux.do/u/nokrai/summary" }
 ];
 
 export const hero = {

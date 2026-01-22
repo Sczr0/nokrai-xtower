@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-export const POST = async ({ request }) => {
+export const POST = async ({ request, locals }) => {
   try {
     // 1. Get configuration
     const pid = import.meta.env.LINUX_DO_CLIENT_ID;
@@ -15,6 +15,28 @@ export const POST = async ({ request }) => {
     const name = "LinuxDo 邀请码";
     const money = "50.00"; 
     const type = "epay";
+
+    // 0. Check inventory and Reserve
+    const DB = locals.runtime?.env?.DB;
+    if (DB) {
+        // First, release any expired reservations (older than 10 minutes)
+        await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE status = 'reserved' AND updated_at < datetime('now', '-10 minutes')").run();
+
+        // Try to reserve a code
+        const { meta } = await DB.prepare(`
+            UPDATE invite_codes 
+            SET status = 'reserved', updated_at = CURRENT_TIMESTAMP, trade_no = ? 
+            WHERE id = (SELECT id FROM invite_codes WHERE status = 'unused' LIMIT 1)
+        `).bind(out_trade_no).run();
+
+        if (meta.changes === 0) {
+            return new Response(JSON.stringify({ error: "Inventory shortage: No invite codes available." }), { status: 400 });
+        }
+    } else {
+        console.warn("Skipping inventory check: DB not available");
+    }
+
+    // 3. Generate signature
 
     // 3. Generate signature
     const return_url = new URL(request.url).origin + "/callback";
