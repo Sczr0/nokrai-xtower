@@ -3,15 +3,16 @@ import crypto from 'node:crypto';
 export const POST = async ({ request, locals }) => {
   try {
     // 1. Get configuration
-    const pid = import.meta.env.LINUX_DO_CLIENT_ID;
-    const key = import.meta.env.LINUX_DO_CLIENT_SECRET;
+    const pid = (import.meta.env.LINUX_DO_CLIENT_ID || "").trim();
+    const key = (import.meta.env.LINUX_DO_CLIENT_SECRET || "").trim();
     
     if (!pid || !key) {
       return new Response(JSON.stringify({ error: "Missing configuration" }), { status: 500 });
     }
 
     // 2. Prepare order data
-    const out_trade_no = "ORDER_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
+    // Use lowercase and simpler format to avoid case sensitivity issues
+    const out_trade_no = "order_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
     const name = "LinuxDo 邀请码";
     const money = "50.00"; 
     const type = "epay";
@@ -19,8 +20,10 @@ export const POST = async ({ request, locals }) => {
     // 0. Check inventory and Reserve
     const DB = locals.runtime?.env?.DB;
     if (DB) {
-        // First, release any expired reservations (older than 10 minutes)
-        await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE status = 'reserved' AND updated_at < datetime('now', '-10 minutes')").run();
+        // First, release any expired reservations (older than 30 minutes to be safe)
+        // await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE status = 'reserved' AND updated_at < datetime('now', '-10 minutes')").run();
+        // Temporary disable auto-release to debug "Inventory shortage" issue
+
 
         // Try to reserve a code
         const { meta } = await DB.prepare(`

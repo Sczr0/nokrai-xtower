@@ -21,5 +21,11 @@
       "database_name": "invite_codes",
       "database_id": "23113b68-a6ef-4ea8-ad1d-f9c2522c7124"
     }
-  ]
+  ],
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  }
 }

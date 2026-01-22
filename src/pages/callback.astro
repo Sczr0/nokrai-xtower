@@ -34,8 +34,9 @@ try {
    // This part is tricky in SSR because we can't access localStorage here.
    // We will pass a flag to the client side to check localStorage.
 
-   const key = import.meta.env.LINUX_DO_CLIENT_SECRET;
-   const pid = import.meta.env.LINUX_DO_CLIENT_ID;
+   
+   const key = (import.meta.env.LINUX_DO_CLIENT_SECRET || "").trim();
+   const pid = (import.meta.env.LINUX_DO_CLIENT_ID || "").trim();
  
    console.log(`[Callback] Method: ${Astro.request.method}, URL: ${Astro.request.url}`);
    console.log("[Callback] Params:", params); 
@@ -58,8 +59,9 @@ try {
           const DB = Astro.locals.runtime?.env?.DB;
            if (DB) {
               try {
+                  const targetTradeNo = (params.out_trade_no || "").trim();
                   // 1. Try to find the reserved code for this order
-                  const { results } = await DB.prepare("SELECT * FROM invite_codes WHERE trade_no = ?").bind(params.out_trade_no).all();
+                  const { results } = await DB.prepare("SELECT * FROM invite_codes WHERE trade_no = ?").bind(targetTradeNo).all();
                   
                   if (results && results.length > 0) {
                       // Found reserved code
@@ -67,19 +69,23 @@ try {
                       await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(results[0].id).run();
                       inviteCode = code;
                   } else {
-                      // Fallback: If reservation expired or missing (should be rare if paid within 10 mins)
+                      // Fallback: If reservation expired or missing
+                      // Debug: Check if there are ANY reserved codes
+                      const recentReserved = await DB.prepare("SELECT trade_no, updated_at FROM invite_codes WHERE status = 'reserved' ORDER BY updated_at DESC LIMIT 1").first();
+                      const debugInfo = recentReserved ? `Latest: ${recentReserved.trade_no}` : "No reserved codes found";
+
                       // Try to grab any unused code
                       const fallback = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").first();
                       if (fallback) {
-                          await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(params.out_trade_no, fallback.id).run();
+                          await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(targetTradeNo, fallback.id).run();
                           inviteCode = fallback.code;
                       } else {
-                          inviteCode = "库存不足，请联系客服补货";
+                          inviteCode = `库存不足，请联系客服补货 (Ref: ${targetTradeNo}, DB: ${debugInfo})`;
                       }
                   }
               } catch (dbErr) {
                   console.error("DB Error:", dbErr);
-                  inviteCode = "系统错误，请联系客服";
+                  inviteCode = "系统错误，请联系客服: " + dbErr.message;
               }
            } else {
               inviteCode = "LINUXDO-2026-WELCOME-VIP"; 

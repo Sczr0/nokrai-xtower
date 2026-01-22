@@ -5,9 +5,12 @@ let message = "";
 let isError = false;
 let stats = { unused: 0, used: 0, reserved: 0, total: 0 };
 
+let recentReservations = [];
+
 try {
   const DB = Astro.locals.runtime?.env?.DB;
   if (DB) {
+      // Fetch stats
       const result = await DB.prepare(`
         SELECT 
           SUM(CASE WHEN status = 'unused' THEN 1 ELSE 0 END) as unused,
@@ -21,6 +24,10 @@ try {
       stats.used = result?.used || 0;
       stats.reserved = result?.reserved || 0;
       stats.total = result?.total || 0;
+
+      // Fetch recent reservations for debugging
+      const reservations = await DB.prepare("SELECT code, trade_no, updated_at FROM invite_codes WHERE status = 'reserved' ORDER BY updated_at DESC LIMIT 5").all();
+      recentReservations = reservations.results || [];
   }
 } catch (e) {
   console.error("Failed to fetch stats:", e);
@@ -30,7 +37,7 @@ if (Astro.request.method === "POST") {
   try {
     const formData = await Astro.request.formData();
     const password = formData.get("password");
-    const adminPassword = import.meta.env.ADMIN_PASSWORD || "admin";
+    const adminPassword = (import.meta.env.ADMIN_PASSWORD || "admin").trim();
     const action = formData.get("action") || "import";
 
     if (password !== adminPassword) {
@@ -106,6 +113,34 @@ if (Astro.request.method === "POST") {
         </div>
       </div>
       
+      <!-- Debug: Recent Reservations -->
+      {recentReservations.length > 0 && (
+        <div class="mb-8 bg-orange-50 p-6 rounded-2xl border border-orange-100">
+           <h2 class="text-lg font-bold text-orange-800 mb-2">最近锁定的订单 (调试用)</h2>
+           <div class="overflow-x-auto">
+             <table class="w-full text-sm text-left text-gray-500">
+               <thead class="text-xs text-gray-700 uppercase bg-orange-100">
+                 <tr>
+                   <th class="px-4 py-2">订单号 (Trade No)</th>
+                   <th class="px-4 py-2">更新时间</th>
+                   <th class="px-4 py-2">邀请码 (手动提取)</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {recentReservations.map((row) => (
+                   <tr class="bg-white border-b hover:bg-gray-50">
+                     <td class="px-4 py-2 font-mono">{row.trade_no}</td>
+                     <td class="px-4 py-2">{row.updated_at}</td>
+                     <td class="px-4 py-2 font-mono font-bold text-gray-900">{row.code}</td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+           <p class="mt-2 text-xs text-orange-600">如果用户支付成功但未收到码，请核对订单号并手动复制邀请码给用户。</p>
+        </div>
+      )}
+
       {message && (
         <div class={`mb-6 rounded-lg p-4 ${isError ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-green-50 text-green-800 border border-green-200'}`}>
           {message}
