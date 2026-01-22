@@ -48,16 +48,41 @@ try {
    console.log("[Callback] Params:", params); 
 
    const requestRefund = async ({ tradeNo, outTradeNo, money }) => {
-      if (!pid || !key || !tradeNo || !money) {
+      if (!pid || !key || !outTradeNo) {
          return "退款失败：缺少参数";
       }
 
+      let resolvedTradeNo = tradeNo;
+      let resolvedMoney = money;
+      let orderStatus = null;
+
       try {
+         if (!resolvedTradeNo || !resolvedMoney) {
+            const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${pid}&key=${key}&out_trade_no=${outTradeNo}`;
+            const response = await fetch(queryUrl);
+            const data = await response.json();
+            if (data.code === 1) {
+               resolvedTradeNo = data.trade_no;
+               resolvedMoney = data.money;
+               orderStatus = data.status;
+            } else {
+               return `库存不足，退款失败：${data.msg || "订单不存在或已完成"}`;
+            }
+         }
+
+         if (orderStatus !== null && orderStatus !== 1) {
+            return "库存不足，退款失败：订单未支付或处理中";
+         }
+
+         if (!resolvedTradeNo || !resolvedMoney) {
+            return "库存不足，退款失败：订单信息不完整";
+         }
+
          const body = new URLSearchParams({
             pid,
             key,
-            trade_no: tradeNo,
-            money: String(money),
+            trade_no: resolvedTradeNo,
+            money: String(resolvedMoney),
             out_trade_no: outTradeNo || ""
          });
          const response = await fetch("https://credit.linux.do/epay/api.php", {
