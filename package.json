@@ -1,0 +1,22 @@
+{
+  "name": "linuxdo-invite-shop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:smoke": "vitest run tests/smoke",
+    "test:functional": "vitest run tests/functional"
+  },
+  "devDependencies": {
+    "@astrojs/tailwind": "latest",
+    "astro": "latest",
+    "autoprefixer": "latest",
+    "postcss": "latest",
+    "tailwindcss": "3",
+    "vitest": "latest"
+  }
+}

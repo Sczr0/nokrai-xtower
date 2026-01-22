@@ -1,0 +1,194 @@
+---
+import "../styles/global.css";
+
+const { searchParams } = Astro.url;
+// We will use client-side fetching to verify and get the code to keep this page static-friendly if needed,
+// or we can do SSR directly here. Since we are already in 'server' mode, let's do SSR.
+
+import crypto from 'node:crypto';
+
+let verificationResult = { success: false, message: "正在验证..." };
+let inviteCode = "";
+
+try {
+  let params = {};
+  
+  // 1. Try to get params from URL (GET)
+  const searchParams = Astro.url.searchParams;
+  if (searchParams.size > 0) {
+      params = Object.fromEntries(searchParams);
+  }
+  
+  // 2. Try to get params from Body (POST) - if GET failed or as supplement
+   if (Astro.request.method === "POST") {
+       try {
+           const formData = await Astro.request.formData();
+           const bodyParams = Object.fromEntries(formData);
+           params = { ...params, ...bodyParams };
+       } catch (e) {
+           console.error("Failed to parse form data:", e);
+       }
+   }
+
+   // 3. (Client-side) We need to handle the case where params are missing but we have localStorage
+   // This part is tricky in SSR because we can't access localStorage here.
+   // We will pass a flag to the client side to check localStorage.
+
+   const key = import.meta.env.LINUX_DO_CLIENT_SECRET;
+   const pid = import.meta.env.LINUX_DO_CLIENT_ID;
+ 
+   console.log(`[Callback] Method: ${Astro.request.method}, URL: ${Astro.request.url}`);
+   console.log("[Callback] Params:", params); 
+
+   if (params.sign) {
+      // Existing signature verification logic...
+      const sign = params.sign;
+      const verifyParams = { ...params };
+      delete verifyParams.sign;
+      delete verifyParams.sign_type;
+      
+      const keys = Object.keys(verifyParams).filter(k => verifyParams[k] !== '' && verifyParams[k] !== undefined).sort();
+      const paramStr = keys.map(k => `${k}=${verifyParams[k]}`).join('&');
+      const signStr = paramStr + key;
+      const calculatedSign = crypto.createHash('md5').update(signStr).digest('hex');
+ 
+      if (calculatedSign === sign) {
+          verificationResult = { success: true, message: "支付验证成功！" };
+          inviteCode = "LINUXDO-2026-WELCOME-VIP"; 
+      } else {
+          verificationResult = { success: false, message: "签名验证失败，请联系客服。" };
+      }
+   } else if (params.out_trade_no) {
+       // Fallback: Query Order Status directly if no sign provided
+       console.log("No signature found, querying order status for:", params.out_trade_no);
+       try {
+         const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${pid}&key=${key}&out_trade_no=${params.out_trade_no}`;
+         const response = await fetch(queryUrl);
+         const data = await response.json();
+         console.log("Query Result:", data);
+ 
+         if (data.code === 1 && data.status === 1) {
+              verificationResult = { success: true, message: "支付验证成功！" };
+              inviteCode = "LINUXDO-2026-WELCOME-VIP";
+         } else {
+              verificationResult = { success: false, message: "订单未支付或不存在。" };
+         }
+       } catch (err) {
+           console.error("Order query failed:", err);
+           verificationResult = { success: false, message: "订单查询失败，请稍后刷新。" };
+       }
+   } else {
+       // If no params, we might need client-side check
+       // verificationResult = { success: false, message: "正在检测订单状态..." };
+       // We'll let the initial state be a "Checking" state if no params are present, 
+       // and let client-side script handle the localStorage check.
+       if (Object.keys(params).length === 0) {
+           verificationResult = { success: false, message: "CHECK_LOCAL_STORAGE" };
+       } else {
+           verificationResult = { success: false, message: "无效的请求参数: " + JSON.stringify(params) };
+       }
+   }
+ } catch (e) {
+     verificationResult = { success: false, message: "验证过程发生错误: " + e.message };
+ }
+ 
+ ---
+ 
+ <!doctype html>
+ <html lang="zh-CN">
+   <head>
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1" />
+     <title>支付结果 - LinuxDo 邀请码商店</title>
+   </head>
+   <body>
+     <div class="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-6 py-12 text-center">
+       
+       <div id="result-container">
+           {verificationResult.message === "CHECK_LOCAL_STORAGE" ? (
+             <div class="w-full rounded-3xl border border-blue-200 bg-blue-50 p-8 shadow-sm">
+               <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600 animate-pulse">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-8 w-8">
+                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                 </svg>
+               </div>
+               <h1 class="text-2xl font-bold text-blue-800">正在查询订单...</h1>
+               <p class="mt-2 text-blue-700">请稍候，系统正在核实您的支付状态。</p>
+             </div>
+           ) : verificationResult.success ? (
+             <div class="w-full rounded-3xl border border-green-200 bg-green-50 p-8 shadow-sm">
+               <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-8 w-8">
+                   <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                 </svg>
+               </div>
+               <h1 class="text-2xl font-bold text-green-800">支付成功</h1>
+               <p class="mt-2 text-green-700">感谢您的支持，您的邀请码如下：</p>
+               
+               <div class="mt-6 rounded-xl border border-dashed border-green-300 bg-white p-4">
+                 <code class="text-xl font-mono font-bold tracking-wider text-green-900 select-all">
+                   {inviteCode}
+                 </code>
+               </div>
+               <p class="mt-2 text-xs text-green-600">请复制并尽快使用</p>
+     
+               <a href="/" class="mt-8 inline-block rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-green-700">
+                 返回首页
+               </a>
+             </div>
+           ) : (
+             <div class="w-full rounded-3xl border border-red-200 bg-red-50 p-8 shadow-sm">
+               <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-8 w-8">
+                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                 </svg>
+               </div>
+               <h1 class="text-2xl font-bold text-red-800">支付验证失败</h1>
+               <p class="mt-2 text-red-700">{verificationResult.message}</p>
+               
+               <a href="/" class="mt-8 inline-block rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-700">
+                 返回首页
+               </a>
+             </div>
+           )}
+       </div>
+ 
+     </div>
+
+     <script>
+        // Client-side check for pending order
+        const checkSessionStorage = async () => {
+          const messageElement = document.querySelector('h1');
+          if (messageElement && messageElement.textContent === "正在查询订单...") {
+              const orderNo = sessionStorage.getItem('pending_order_no');
+              if (orderNo) {
+                  console.log("Found pending order:", orderNo);
+                  // Redirect to self with order number to trigger server-side check
+                  window.location.href = `/callback?out_trade_no=${orderNo}`;
+                  // Clear it to prevent loop if check fails, but maybe keep it until success?
+                  // For now, let's keep it until verified or manual clear.
+                  sessionStorage.removeItem('pending_order_no'); 
+              } else {
+                  // No order found locally either
+                  const container = document.getElementById('result-container');
+                  if (container) {
+                      container.innerHTML = `
+                      <div class="w-full rounded-3xl border border-red-200 bg-red-50 p-8 shadow-sm">
+                        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-8 w-8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                        <h1 class="text-2xl font-bold text-red-800">未找到订单信息</h1>
+                        <p class="mt-2 text-red-700">无法验证支付状态，请联系客服。</p>
+                        <a href="/" class="mt-8 inline-block rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-700">返回首页</a>
+                      </div>`;
+                  }
+              }
+          }
+        };
+        
+        checkSessionStorage();
+      </script>
+   </body>
+ </html>
