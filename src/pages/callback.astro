@@ -212,8 +212,37 @@ try {
                  inviteCode = "LINUXDO-2026-WELCOME-VIP";
               }
          } else {
-              releaseReason = data.code === 1 ? "订单未支付" : "订单不存在";
-              verificationResult = { success: false, message: "订单未支付或不存在。" };
+              const messageText = data.msg || "";
+              const isCompleted = messageText.includes("已完成");
+              if (isCompleted) {
+                  const DB = Astro.locals.runtime?.env?.DB;
+                  if (DB) {
+                      try {
+                          const targetTradeNo = (params.out_trade_no || "").trim();
+                          const reserved = await DB.prepare("SELECT * FROM invite_codes WHERE trade_no = ?").bind(targetTradeNo).first();
+                          if (reserved) {
+                              await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(reserved.id).run();
+                              inviteCode = reserved.code;
+                              verificationResult = { success: true, message: "支付验证成功！" };
+                          } else {
+                              refundMessage = await requestRefund({
+                                  tradeNo: data.trade_no || "",
+                                  outTradeNo: targetTradeNo,
+                                  money: data.money || ""
+                              });
+                              markRefundResult(refundMessage);
+                          }
+                      } catch (dbErr) {
+                          console.error("DB Error:", dbErr);
+                          verificationResult = { success: false, message: "订单验证失败，请联系客服。" };
+                      }
+                  } else {
+                      verificationResult = { success: false, message: "订单验证失败，请联系客服。" };
+                  }
+              } else {
+                  releaseReason = data.code === 1 ? "订单未支付" : "订单不存在";
+                  verificationResult = { success: false, message: "订单未支付或不存在。" };
+              }
          }
        } catch (err) {
            console.error("Order query failed:", err);

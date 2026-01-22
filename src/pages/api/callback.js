@@ -36,18 +36,29 @@ export const GET = async ({ request, locals }) => {
         return new Response(JSON.stringify({ success: false, message: "Invalid signature" }), { status: 400 });
     }
     
-    // 2. Check status (Assuming 'trade_status' is 'TRADE_SUCCESS' or similar check as per docs)
-    // The docs say callback param includes trade_status=TRADE_SUCCESS
-    // However, for the sync return (return_url), params might differ slightly.
-    // Let's assume successful validation means we can show the invite code.
-    
-    // In a real app, you should check trade_status if available, or query the order API.
-    
-    return new Response(JSON.stringify({ 
-        success: true, 
-        invite_code: "LINUXDO-2026-WELCOME-VIP" // Mock invite code
-    }), {
-        headers: { "Content-Type": "application/json" }
+    const tradeStatus = params.trade_status;
+    if (tradeStatus && tradeStatus !== "TRADE_SUCCESS") {
+        return new Response("fail", { status: 400 });
+    }
+
+    const DB = locals.runtime?.env?.DB;
+    if (DB) {
+        const outTradeNo = (params.out_trade_no || "").trim();
+        if (outTradeNo) {
+            const reserved = await DB.prepare("SELECT * FROM invite_codes WHERE trade_no = ?").bind(outTradeNo).first();
+            if (reserved) {
+                await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(reserved.id).run();
+            } else {
+                const fallback = await DB.prepare("SELECT * FROM invite_codes WHERE status = 'unused' LIMIT 1").first();
+                if (fallback) {
+                    await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(outTradeNo, fallback.id).run();
+                }
+            }
+        }
+    }
+
+    return new Response("success", {
+        headers: { "Content-Type": "text/plain" }
     });
 
   } catch (error) {

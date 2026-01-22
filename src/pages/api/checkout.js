@@ -45,12 +45,14 @@ export const POST = async ({ request, locals }) => {
     // 3. Generate signature
     const return_url = new URL(request.url).origin + "/callback";
     
+    const notify_url = new URL(request.url).origin + "/api/callback";
     const params = {
       pid,
       type,
       out_trade_no,
       name,
       money,
+      notify_url,
       return_url
     };
     
