@@ -4,6 +4,12 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "routes": [
+    {
+      "pattern": "nokria.xtower.site",
+      "custom_domain": true
+    }
+  ],
   "main": "./dist/_worker.js/index.js",
   "assets": {
     "binding": "ASSETS",
