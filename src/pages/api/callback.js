@@ -17,7 +17,11 @@ export const GET = async ({ request, locals }) => {
     const signType = params.sign_type;
     
     if (!sign || !signType) {
-       return new Response(JSON.stringify({ success: false, message: "No signature provided" }), { status: 400 });
+       const outTradeNo = (params.out_trade_no || "").trim();
+       if (outTradeNo) {
+          return Response.redirect(`${url.origin}/callback?out_trade_no=${encodeURIComponent(outTradeNo)}`, 302);
+       }
+       return new Response("fail", { status: 400 });
     }
 
     // Filter sign and sign_type, then sort and join
