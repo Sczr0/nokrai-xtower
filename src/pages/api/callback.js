@@ -98,7 +98,6 @@ export const GET = async ({ request, locals }) => {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
-                        act: "refund",
                         pid: pid,
                         key: key,
                         trade_no: tradeNoToUse,
