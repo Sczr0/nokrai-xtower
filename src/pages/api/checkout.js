@@ -30,7 +30,8 @@ export const POST = async ({ request, locals }) => {
         const { meta } = await DB.prepare(`
             UPDATE invite_codes 
             SET status = 'reserved', updated_at = CURRENT_TIMESTAMP, trade_no = ? 
-            WHERE id = (SELECT id FROM invite_codes WHERE status = 'unused' LIMIT 1)
+            WHERE id = (SELECT id FROM invite_codes WHERE status = 'unused' ORDER BY id LIMIT 1)
+              AND status = 'unused'
         `).bind(out_trade_no).run();
 
         if (meta.changes === 0) {

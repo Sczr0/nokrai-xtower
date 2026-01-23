@@ -6,7 +6,7 @@
     "dev": "astro dev --host",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "vitest run",
+    "test": "astro build && vitest run",
     "test:unit": "vitest run tests/unit",
     "test:smoke": "vitest run tests/smoke",
     "test:functional": "vitest run tests/functional"

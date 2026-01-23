@@ -81,23 +81,31 @@ try {
             return "库存不足，退款失败：订单信息不完整";
          }
 
-         const body = new URLSearchParams({
-            pid,
-            key,
-            trade_no: resolvedTradeNo,
-            money: String(resolvedMoney),
-            out_trade_no: outTradeNo || ""
-         });
-         const response = await fetch("https://credit.linux.do/epay/api.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body
-         });
-         const data = await response.json();
-         if (data.code === 1) {
-            return "库存不足，已发起退款";
+         const doRefund = async (tradeNoToUse) => {
+            const body = new URLSearchParams({
+               pid,
+               key,
+               trade_no: String(tradeNoToUse || ""),
+               money: String(resolvedMoney),
+               out_trade_no: outTradeNo || ""
+            });
+            const response = await fetch("https://credit.linux.do/epay/api.php", {
+               method: "POST",
+               headers: { "Content-Type": "application/x-www-form-urlencoded" },
+               body
+            });
+            const data = await response.json();
+            return data;
+         };
+
+         let refundData = await doRefund(resolvedTradeNo);
+         if (refundData?.code !== 1 && String(resolvedTradeNo || "") !== String(outTradeNo || "")) {
+            const retry = await doRefund(outTradeNo);
+            if (retry?.code === 1) refundData = retry;
          }
-         return `库存不足，退款失败：${data.msg || "未知错误"}`;
+
+         if (refundData?.code === 1) return "库存不足，已发起退款";
+         return `库存不足，退款失败：${refundData?.msg || "未知错误"}`;
       } catch (err) {
          console.error("Refund error:", err);
          return "库存不足，退款请求失败";
@@ -158,6 +166,7 @@ try {
                              money: params.money || ""
                           });
                           markRefundResult(refundMessage);
+                          await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE trade_no = ? AND status = 'reserved'").bind(targetTradeNo).run();
                           inviteCode = `${refundMessage} (Ref: ${targetTradeNo}, DB: ${debugInfo})`;
                       }
                   }
@@ -204,6 +213,7 @@ try {
                                 money: data.money || ""
                              });
                              markRefundResult(refundMessage);
+                             await DB.prepare("UPDATE invite_codes SET status = 'unused', trade_no = NULL WHERE trade_no = ? AND status = 'reserved'").bind(targetTradeNo).run();
                              inviteCode = refundMessage;
                          }
                      }

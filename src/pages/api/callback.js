@@ -59,6 +59,67 @@ export const GET = async ({ request, locals }) => {
         return new Response("fail", { status: 400 });
     }
 
+    const requestRefund = async ({ outTradeNo, tradeNo, money }) => {
+        if (!outTradeNo) return { ok: false, msg: "missing out_trade_no" };
+
+        let resolvedTradeNo = tradeNo ? String(tradeNo).trim() : "";
+        let resolvedMoney = money ? String(money).trim() : "";
+        let resolvedStatus = null;
+
+        try {
+            if (!resolvedTradeNo || !resolvedMoney) {
+                const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${encodeURIComponent(pid)}&key=${encodeURIComponent(key)}&out_trade_no=${encodeURIComponent(outTradeNo)}`;
+                const queryRes = await fetch(queryUrl, { method: "GET" });
+                const queryData = await queryRes.json();
+
+                if (queryData?.code === 1) {
+                    resolvedTradeNo = String(queryData.trade_no || "").trim();
+                    resolvedMoney = String(queryData.money || "").trim();
+                    resolvedStatus = queryData.status;
+                } else {
+                    return { ok: false, msg: queryData?.msg || "order query failed" };
+                }
+            }
+
+            if (resolvedStatus !== null && String(resolvedStatus) !== "1") {
+                return { ok: false, msg: "order not paid" };
+            }
+
+            if (!resolvedTradeNo || !resolvedMoney) {
+                return { ok: false, msg: "incomplete order info" };
+            }
+
+            const doRefund = async (tradeNoToUse) => {
+                const refundRes = await fetch("https://credit.linux.do/epay/api.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams({
+                        pid: pid,
+                        key: key,
+                        trade_no: tradeNoToUse,
+                        money: resolvedMoney,
+                        out_trade_no: outTradeNo
+                    })
+                });
+
+                const ct = refundRes.headers.get("content-type") || "";
+                const refundData = ct.includes("application/json") ? await refundRes.json() : { raw: await refundRes.text() };
+                if (refundData?.code === 1) return { ok: true, msg: refundData?.msg || "refund ok", data: refundData };
+                return { ok: false, msg: refundData?.msg || refundData?.raw || "refund failed", data: refundData };
+            };
+
+            let result = await doRefund(resolvedTradeNo);
+            if (!result.ok && resolvedTradeNo !== outTradeNo) {
+                const retry = await doRefund(outTradeNo);
+                if (retry.ok) result = retry;
+            }
+
+            return result;
+        } catch (err) {
+            return { ok: false, msg: err?.message || "refund error" };
+        }
+    };
+
     const DB = locals.runtime?.env?.DB;
     if (DB) {
         const outTradeNo = (params.out_trade_no || "").trim();
@@ -72,27 +133,15 @@ export const GET = async ({ request, locals }) => {
                     await DB.prepare("UPDATE invite_codes SET status = 'used', updated_at = CURRENT_TIMESTAMP, trade_no = ? WHERE id = ?").bind(outTradeNo, fallback.id).run();
                 } else {
                     console.log(`Inventory shortage for order ${outTradeNo}, initiating refund...`);
-                    // Refund logic
-                    if (params.trade_no && params.money) {
-                        try {
-                             const refundRes = await fetch("https://credit.linux.do/epay/api.php", {
-                                 method: "POST",
-                                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                                 body: new URLSearchParams({
-                                     pid: pid,
-                                     key: key,
-                                     trade_no: params.trade_no,
-                                     money: params.money,
-                                     out_trade_no: outTradeNo
-                                 })
-                             });
-                             const refundData = await refundRes.json();
-                             console.log("Refund result:", refundData);
-                        } catch (err) {
-                             console.error("Refund failed:", err);
-                        }
+                    const refundResult = await requestRefund({
+                        outTradeNo,
+                        tradeNo: params.trade_no,
+                        money: params.money
+                    });
+                    if (refundResult.ok) {
+                        console.log("Refund result:", refundResult.data || refundResult.msg);
                     } else {
-                        console.error("Cannot refund: Missing trade_no or money in params");
+                        console.error("Refund failed:", refundResult.msg, refundResult.data || "");
                     }
                 }
             }
