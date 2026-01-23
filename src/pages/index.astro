@@ -1,6 +1,13 @@
 ---
 import "../styles/global.css";
 import { navLinks, hero, features, steps, footer } from "../data/content.js";
+
+// 缓存策略：首页主要为静态内容，边缘缓存 10 分钟以节省服务器资源
+// 注意：如果后续添加了“实时库存显示”，需要缩短此缓存时间或改为客户端获取
+const runtimeEnv = Astro.locals.runtime?.env || {};
+const turnstileSiteKey = runtimeEnv.PUBLIC_TURNSTILE_SITE_KEY || import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || "";
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=600, s-maxage=600');
 ---
 
 <!doctype html>
@@ -13,6 +20,7 @@ import { navLinks, hero, features, steps, footer } from "../data/content.js";
       name="description"
       content="LinuxDo 社区邀请码自助商店，基于 Credit 积分支付，自动发货。"
     />
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   </head>
   <body>
     <div class="mx-auto flex min-h-screen max-w-6xl flex-col px-6 pb-16 pt-8">
@@ -37,7 +45,10 @@ import { navLinks, hero, features, steps, footer } from "../data/content.js";
           <p class="mx-auto mt-4 max-w-2xl text-base text-[color:var(--text-body)] md:text-lg">
             {hero.subtitle}
           </p>
-          <div class="mt-8 flex justify-center">
+          <div class="mt-8 flex flex-col items-center justify-center gap-4">
+            {turnstileSiteKey && (
+                <div class="cf-turnstile" data-sitekey={turnstileSiteKey}></div>
+            )}
             <button
               id="buy-btn"
               class="rounded-full bg-[color:var(--brand-blue)] px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[color:var(--brand-blue-dark)] cursor-pointer"
@@ -50,6 +61,20 @@ import { navLinks, hero, features, steps, footer } from "../data/content.js";
         <script>
           document.getElementById('buy-btn')?.addEventListener('click', async () => {
             const btn = document.getElementById('buy-btn');
+            
+            // Check Turnstile
+            const turnstileInput = document.querySelector('[name="cf-turnstile-response"]');
+            const turnstileWidget = document.querySelector('.cf-turnstile');
+            let turnstileToken = '';
+            
+            if (turnstileWidget) {
+                turnstileToken = turnstileInput?.value;
+                if (!turnstileToken) {
+                    alert('请先完成人机验证');
+                    return;
+                }
+            }
+
             if (btn) {
               btn.innerText = '正在跳转...';
               btn.setAttribute('disabled', 'true');
@@ -57,7 +82,11 @@ import { navLinks, hero, features, steps, footer } from "../data/content.js";
             }
 
             try {
-              const response = await fetch('/api/checkout', { method: 'POST' });
+              const response = await fetch('/api/checkout', { 
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ turnstileToken })
+              });
               const data = await response.json();
               
               if (data.error) {

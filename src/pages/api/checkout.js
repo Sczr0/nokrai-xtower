@@ -2,6 +2,39 @@ import crypto from 'node:crypto';
 
 export const POST = async ({ request, locals }) => {
   try {
+    // 0. Security Check (Turnstile)
+    const turnstileSecret = locals.runtime?.env?.TURNSTILE_SECRET_KEY || import.meta.env.TURNSTILE_SECRET_KEY;
+    
+    if (turnstileSecret) {
+        let body = {};
+        try {
+            body = await request.json();
+        } catch (e) {
+            // Ignore if body is not JSON
+        }
+        const { turnstileToken } = body;
+
+        if (!turnstileToken) {
+            return new Response(JSON.stringify({ error: "Security check failed: Token missing" }), { status: 400 });
+        }
+
+        const formData = new FormData();
+        formData.append('secret', turnstileSecret);
+        formData.append('response', turnstileToken);
+        formData.append('remoteip', request.headers.get('CF-Connecting-IP') || "");
+
+        const result = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            body: formData,
+            method: 'POST',
+        });
+
+        const outcome = await result.json();
+        if (!outcome.success) {
+             console.error("Turnstile verification failed:", outcome);
+             return new Response(JSON.stringify({ error: "Security check failed: Invalid token" }), { status: 403 });
+        }
+    }
+
     // 1. Get configuration
     const runtimePid = locals.runtime?.env?.LINUX_DO_CLIENT_ID;
     const runtimeKey = locals.runtime?.env?.LINUX_DO_CLIENT_SECRET;
