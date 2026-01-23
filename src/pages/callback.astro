@@ -55,39 +55,40 @@ try {
       let resolvedTradeNo = tradeNo;
       let resolvedMoney = money;
       let orderStatus = null;
-      let debug = { resolvedTradeNo: "", resolvedMoney: "", orderStatus: null, refund: null };
+      let orderMsg = "";
+      let debug = { resolvedTradeNo: "", resolvedMoney: "", orderStatus: null, refund: null, orderMsg: "" };
 
       try {
-         if (!resolvedTradeNo || !resolvedMoney) {
-            const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${encodeURIComponent(pid)}&key=${encodeURIComponent(key)}&out_trade_no=${encodeURIComponent(outTradeNo)}`;
-            const response = await fetch(queryUrl);
-            const data = await response.json();
-            if (data.code === 1) {
-               resolvedTradeNo = data.trade_no;
-               resolvedMoney = data.money;
-               orderStatus = data.status;
-               debug.resolvedTradeNo = String(resolvedTradeNo || "");
-               debug.resolvedMoney = String(resolvedMoney || "");
-               debug.orderStatus = orderStatus;
-            } else {
-               console.warn("Order query failed:", data);
-               // Try to proceed if we have params even if query failed?
-               // No, if query failed, we probably want to be careful.
-               return `库存不足，且无法获取订单信息（${data.msg || "未知错误"}），请联系客服退款。`;
-            }
+         const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${encodeURIComponent(pid)}&key=${encodeURIComponent(key)}&out_trade_no=${encodeURIComponent(outTradeNo)}`;
+         const response = await fetch(queryUrl);
+         const data = await response.json();
+
+         if (data.code === 1) {
+            resolvedTradeNo = data.trade_no;
+            resolvedMoney = data.money;
+            orderStatus = data.status;
+            orderMsg = String(data.msg || "");
+         } else if (!resolvedTradeNo || !resolvedMoney) {
+            console.warn("Order query failed:", data);
+            return `库存不足，且无法获取订单信息（${data.msg || "未知错误"}），请联系客服退款。`;
          }
 
+         debug.resolvedTradeNo = String(resolvedTradeNo || "");
+         debug.resolvedMoney = String(resolvedMoney || "");
+         debug.orderStatus = orderStatus;
+         debug.orderMsg = orderMsg;
+
          if (orderStatus !== null && String(orderStatus) !== "1") {
-            return "库存不足，退款失败：订单未支付或处理中";
+            return `库存不足，退款失败：订单未支付或处理中 (trade_no=${debug.resolvedTradeNo}, money=${debug.resolvedMoney}, status=${debug.orderStatus ?? ""})`;
          }
 
          if (!resolvedTradeNo || !resolvedMoney) {
             return "库存不足，退款失败：订单信息不完整";
          }
 
-         debug.resolvedTradeNo = String(resolvedTradeNo || "");
-         debug.resolvedMoney = String(resolvedMoney || "");
-         debug.orderStatus = orderStatus;
+         if (orderMsg.includes("测试") || orderMsg.includes("未实际扣款")) {
+            return `库存不足，测试订单未实际扣款，无需退款 (trade_no=${debug.resolvedTradeNo}, money=${debug.resolvedMoney})`;
+         }
 
          const doRefund = async (tradeNoToUse) => {
             const tradeNoStr = String(tradeNoToUse || "").trim();
@@ -110,6 +111,7 @@ try {
             } catch {}
 
             const body = new URLSearchParams({
+               act: "refund",
                pid,
                key,
                trade_no: tradeNoStr,
@@ -129,7 +131,7 @@ try {
          debug.refund = refundData ? { code: refundData.code, msg: refundData.msg } : null;
 
          if (refundData?.code === 1) return "库存不足，已发起退款";
-         return `库存不足，退款失败：${refundData?.msg || "未知错误"} (trade_no=${debug.resolvedTradeNo}, money=${debug.resolvedMoney}, status=${debug.orderStatus ?? ""}, refund_code=${debug.refund?.code ?? ""})`;
+         return `库存不足，退款失败：${refundData?.msg || "未知错误"} (trade_no=${debug.resolvedTradeNo}, money=${debug.resolvedMoney}, status=${debug.orderStatus ?? ""}, refund_code=${debug.refund?.code ?? ""}, order_msg=${debug.orderMsg || ""})`;
       } catch (err) {
          console.error("Refund error:", err);
          return "库存不足，退款请求失败";

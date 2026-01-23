@@ -65,28 +65,32 @@ export const GET = async ({ request, locals }) => {
         let resolvedTradeNo = tradeNo ? String(tradeNo).trim() : "";
         let resolvedMoney = money ? String(money).trim() : "";
         let resolvedStatus = null;
+        let orderMsg = "";
 
         try {
-            if (!resolvedTradeNo || !resolvedMoney) {
-                const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${encodeURIComponent(pid)}&key=${encodeURIComponent(key)}&out_trade_no=${encodeURIComponent(outTradeNo)}`;
-                const queryRes = await fetch(queryUrl, { method: "GET" });
-                const queryData = await queryRes.json();
+            const queryUrl = `https://credit.linux.do/epay/api.php?act=order&pid=${encodeURIComponent(pid)}&key=${encodeURIComponent(key)}&out_trade_no=${encodeURIComponent(outTradeNo)}`;
+            const queryRes = await fetch(queryUrl, { method: "GET" });
+            const queryData = await queryRes.json();
 
-                if (queryData?.code === 1) {
-                    resolvedTradeNo = String(queryData.trade_no || "").trim();
-                    resolvedMoney = String(queryData.money || "").trim();
-                    resolvedStatus = queryData.status;
-                } else {
-                    return { ok: false, msg: queryData?.msg || "order query failed" };
-                }
+            if (queryData?.code === 1) {
+                resolvedTradeNo = String(queryData.trade_no || "").trim();
+                resolvedMoney = String(queryData.money || "").trim();
+                resolvedStatus = queryData.status;
+                orderMsg = String(queryData.msg || "");
+            } else if (!resolvedTradeNo || !resolvedMoney) {
+                return { ok: false, msg: queryData?.msg || "order query failed", data: queryData };
             }
 
             if (resolvedStatus !== null && String(resolvedStatus) !== "1") {
-                return { ok: false, msg: "order not paid" };
+                return { ok: false, msg: "order not paid", data: { status: resolvedStatus, orderMsg } };
             }
 
             if (!resolvedTradeNo || !resolvedMoney) {
                 return { ok: false, msg: "incomplete order info" };
+            }
+
+            if (orderMsg.includes("测试") || orderMsg.includes("未实际扣款")) {
+                return { ok: true, msg: "test order no refund needed", data: { trade_no: resolvedTradeNo, money: resolvedMoney } };
             }
 
             if (!/^\d+$/.test(resolvedTradeNo)) {
@@ -115,6 +119,7 @@ export const GET = async ({ request, locals }) => {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
+                        act: "refund",
                         pid: pid,
                         key: key,
                         trade_no: tradeNoStr,
