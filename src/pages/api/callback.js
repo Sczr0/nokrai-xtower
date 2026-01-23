@@ -89,6 +89,10 @@ export const GET = async ({ request, locals }) => {
                 return { ok: false, msg: "incomplete order info" };
             }
 
+            if (!/^\d+$/.test(resolvedTradeNo)) {
+                return { ok: false, msg: "trade_no not numeric" };
+            }
+
             const doRefund = async (tradeNoToUse) => {
                 const refundRes = await fetch("https://credit.linux.do/epay/api.php", {
                     method: "POST",
@@ -109,13 +113,7 @@ export const GET = async ({ request, locals }) => {
                 return { ok: false, msg: refundData?.msg || refundData?.raw || "refund failed", data: refundData };
             };
 
-            let result = await doRefund(resolvedTradeNo);
-            if (!result.ok && resolvedTradeNo !== outTradeNo) {
-                const retry = await doRefund(outTradeNo);
-                if (retry.ok) result = retry;
-            }
-
-            return result;
+            return await doRefund(resolvedTradeNo);
         } catch (err) {
             return { ok: false, msg: err?.message || "refund error" };
         }
