@@ -18,7 +18,7 @@ export const POST = async ({ request, locals }) => {
     // Use lowercase and simpler format to avoid case sensitivity issues
     const out_trade_no = "order_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
     const name = "LinuxDo 邀请码";
-    const money = "1.00"; 
+    const money = "50.00"; 
     const type = "epay";
 
     // 0. Check inventory and Reserve
