@@ -55,6 +55,7 @@ try {
       let resolvedTradeNo = tradeNo;
       let resolvedMoney = money;
       let orderStatus = null;
+      let debug = { outTradeNo, resolvedTradeNo: "", resolvedMoney: "", orderStatus: null, refund: null };
 
       try {
          if (!resolvedTradeNo || !resolvedMoney) {
@@ -65,6 +66,9 @@ try {
                resolvedTradeNo = data.trade_no;
                resolvedMoney = data.money;
                orderStatus = data.status;
+               debug.resolvedTradeNo = String(resolvedTradeNo || "");
+               debug.resolvedMoney = String(resolvedMoney || "");
+               debug.orderStatus = orderStatus;
             } else {
                console.warn("Order query failed:", data);
                // Try to proceed if we have params even if query failed?
@@ -87,6 +91,20 @@ try {
                return { code: -1, msg: "trade_no 非数字，无法自动退款" };
             }
 
+            const tradeNoNumStr = BigInt(tradeNoStr).toString();
+            const jsonBody =
+               `{"pid":${JSON.stringify(pid)},"key":${JSON.stringify(key)},"trade_no":${tradeNoNumStr},"money":${JSON.stringify(String(resolvedMoney))},"out_trade_no":${JSON.stringify(outTradeNo || "")}}`;
+
+            try {
+               const response = await fetch("https://credit.linux.do/epay/api.php", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: jsonBody
+               });
+               const data = await response.json();
+               if (data?.code === 1) return data;
+            } catch {}
+
             const body = new URLSearchParams({
                pid,
                key,
@@ -104,9 +122,10 @@ try {
          };
 
          let refundData = await doRefund(resolvedTradeNo);
+         debug.refund = refundData ? { code: refundData.code, msg: refundData.msg } : null;
 
          if (refundData?.code === 1) return "库存不足，已发起退款";
-         return `库存不足，退款失败：${refundData?.msg || "未知错误"}`;
+         return `库存不足，退款失败：${refundData?.msg || "未知错误"} (trade_no=${debug.resolvedTradeNo}, money=${debug.resolvedMoney})`;
       } catch (err) {
          console.error("Refund error:", err);
          return "库存不足，退款请求失败";

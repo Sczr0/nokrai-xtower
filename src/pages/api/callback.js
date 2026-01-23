@@ -94,13 +94,30 @@ export const GET = async ({ request, locals }) => {
             }
 
             const doRefund = async (tradeNoToUse) => {
+                const tradeNoStr = String(tradeNoToUse || "").trim();
+                const tradeNoNumStr = BigInt(tradeNoStr).toString();
+                const jsonBody =
+                    `{"pid":${JSON.stringify(pid)},"key":${JSON.stringify(key)},"trade_no":${tradeNoNumStr},"money":${JSON.stringify(resolvedMoney)},"out_trade_no":${JSON.stringify(outTradeNo)}}`;
+
+                try {
+                    const refundRes = await fetch("https://credit.linux.do/epay/api.php", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: jsonBody
+                    });
+
+                    const ct = refundRes.headers.get("content-type") || "";
+                    const refundData = ct.includes("application/json") ? await refundRes.json() : { raw: await refundRes.text() };
+                    if (refundData?.code === 1) return { ok: true, msg: refundData?.msg || "refund ok", data: refundData };
+                } catch {}
+
                 const refundRes = await fetch("https://credit.linux.do/epay/api.php", {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
                     body: new URLSearchParams({
                         pid: pid,
                         key: key,
-                        trade_no: tradeNoToUse,
+                        trade_no: tradeNoStr,
                         money: resolvedMoney,
                         out_trade_no: outTradeNo
                     })
