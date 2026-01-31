@@ -1,14 +1,18 @@
 // 页面文案集中管理，便于后续维护与扩展
+import { siteConfig } from "../config";
+
 export const navLinks = [
   { label: "查询订单", href: "/callback" },
-  { label: "联系客服", href: "https://linux.do/u/xtower/summary" }
+  { label: "联系客服", href: siteConfig.authorUrl }
 ];
 
+const priceInt = parseInt(siteConfig.price);
+
 export const hero = {
-  title: "LinuxDo 社区邀请码自动发货",
-  subtitle: "基于 Credit 积分支付，全自动发卡，安全快捷加入社区",
+  title: siteConfig.heroTitle,
+  subtitle: siteConfig.heroSubtitle,
   cta: {
-    label: "立即购买 (500 积分)",
+    label: `立即购买 (${priceInt} ${siteConfig.currencyLabel})`,
     href: "#buy"
   }
 };
@@ -33,11 +37,11 @@ export const features = [
 
 export const steps = [
   "点击购买，跳转 LinuxDo 授权。",
-  "确认支付 500 积分。",
+  `确认支付 ${priceInt} ${siteConfig.currencyLabel}。`,
   "页面自动跳转回并显示邀请码。"
 ];
 
 export const footer = {
-  text: "© 2026 LinuxDo 邀请码自助商店",
+  text: `© 2026 ${siteConfig.productName}`,
   privacy: { label: "隐私协议", href: "/privacy" }
 };

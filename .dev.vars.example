@@ -1,0 +1,4 @@
+PUBLIC_TURNSTILE_SITE_KEY=your_site_key
+TURNSTILE_SECRET_KEY=your_secret_key
+LINUX_DO_CLIENT_ID=your_client_id
+LINUX_DO_CLIENT_SECRET=your_client_secret

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { siteConfig } from '../../config';
 
 export const POST = async ({ request, locals }) => {
   try {
@@ -50,8 +51,8 @@ export const POST = async ({ request, locals }) => {
     // 2. Prepare order data
     // Use lowercase and simpler format to avoid case sensitivity issues
     const out_trade_no = "order_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
-    const name = "LinuxDo 邀请码";
-    const money = "500.00"; 
+    const name = siteConfig.productName;
+    const money = siteConfig.price; 
     const type = "epay";
 
     // 0. Check inventory and Reserve

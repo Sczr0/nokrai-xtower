@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { navLinks, hero, features, steps, footer } from "../../src/data/content.js";
+import { siteConfig } from "../../src/config.js";
 
 // 内容数据单元测试
 describe("content data", () => {
@@ -10,7 +11,7 @@ describe("content data", () => {
 
   it("Hero 文案完整", () => {
     expect(hero.title).toContain("邀请码");
-    expect(hero.cta.label).toContain("500 积分");
+    expect(hero.cta.label).toContain(siteConfig.currencyLabel);
   });
 
   it("特性与步骤数量正确", () => {
@@ -19,6 +20,6 @@ describe("content data", () => {
   });
 
   it("页脚信息存在", () => {
-    expect(footer.text).toContain("LinuxDo");
+    expect(footer.text).toBeTruthy();
   });
 });
