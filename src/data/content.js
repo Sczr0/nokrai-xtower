@@ -8,7 +8,7 @@ export const hero = {
   title: "LinuxDo 社区邀请码自动发货",
   subtitle: "基于 Credit 积分支付，全自动发卡，安全快捷加入社区",
   cta: {
-    label: "立即购买 (50 积分)",
+    label: "立即购买 (500 积分)",
     href: "#buy"
   }
 };
@@ -33,7 +33,7 @@ export const features = [
 
 export const steps = [
   "点击购买，跳转 LinuxDo 授权。",
-  "确认支付 50 积分。",
+  "确认支付 500 积分。",
   "页面自动跳转回并显示邀请码。"
 ];
 

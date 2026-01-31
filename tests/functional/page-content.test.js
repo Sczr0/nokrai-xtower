@@ -14,7 +14,7 @@ describe("page content", () => {
 
     const contentJs = readFileSync(resolve(contentChunksDir, contentChunk), "utf-8");
     expect(contentJs).toContain("LinuxDo 社区邀请码自动发货");
-    expect(contentJs).toContain("立即购买 (50 积分)");
+    expect(contentJs).toContain("立即购买 (500 积分)");
 
     const indexModule = readFileSync(resolve("dist/_worker.js/pages/index.astro.mjs"), "utf-8");
     expect(indexModule).toContain("购买流程");

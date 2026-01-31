@@ -10,7 +10,7 @@ describe("content data", () => {
 
   it("Hero 文案完整", () => {
     expect(hero.title).toContain("邀请码");
-    expect(hero.cta.label).toContain("50 积分");
+    expect(hero.cta.label).toContain("500 积分");
   });
 
   it("特性与步骤数量正确", () => {
