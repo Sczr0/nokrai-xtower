@@ -13,8 +13,8 @@
 ### 2. 克隆与安装
 
 ```bash
-git clone https://github.com/Sczr0/nokrai.xtower.site.git
-cd nokrai.xtower.site
+git clone https://github.com/Sczr0/nokrai-xtower.git
+cd nokrai-xtower
 npm install
 ```
 
