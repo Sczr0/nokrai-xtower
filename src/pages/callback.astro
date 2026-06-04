@@ -324,14 +324,39 @@ try {
        
        <div id="result-container">
            {verificationResult.message === "CHECK_LOCAL_STORAGE" ? (
-             <div class="w-full rounded-3xl border border-blue-200 bg-blue-50 p-8 shadow-sm">
-               <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600 animate-pulse">
+             <div class="w-full rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-sm">
+               <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-8 w-8">
-                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                  </svg>
                </div>
-               <h1 class="text-2xl font-bold text-blue-800">正在查询订单...</h1>
-               <p class="mt-2 text-blue-700">请稍候，系统正在核实您的支付状态。</p>
+               <h1 class="text-2xl font-bold text-amber-800">查询订单</h1>
+               <p class="mt-2 text-amber-700">请输入您的订单号查询支付状态：</p>
+
+               <form id="order-lookup-form" class="mt-6 flex flex-col items-center gap-3" action="/callback" method="GET">
+                 <input
+                   type="text"
+                   name="out_trade_no"
+                   placeholder="请输入订单号"
+                   class="w-full max-w-sm rounded-xl border border-amber-300 bg-white px-4 py-3 text-center text-base focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                   autocomplete="off"
+                   required
+                 />
+                 <button
+                   type="submit"
+                   class="rounded-full bg-amber-600 px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700"
+                 >
+                   查询
+                 </button>
+               </form>
+
+               <p class="mt-4 text-xs text-amber-500">
+                 提示：您可以在支付成功页面的回执信息中找到订单号。
+               </p>
+
+               <a href="/" class="mt-6 inline-block rounded-full bg-white px-6 py-2 text-sm font-semibold text-amber-700 shadow-sm ring-1 ring-amber-300 transition hover:bg-amber-100">
+                 返回首页
+               </a>
              </div>
            ) : verificationResult.success ? (
              <div class="w-full rounded-3xl border border-green-200 bg-green-50 p-8 shadow-sm">
@@ -374,39 +399,24 @@ try {
      </div>
 
      <script>
-        // Client-side check for pending order
-        const checkSessionStorage = async () => {
-          const messageElement = document.querySelector('h1');
-          if (messageElement && messageElement.textContent === "正在查询订单...") {
-              const orderNo = sessionStorage.getItem('pending_order_no');
-              if (orderNo) {
-                  console.log("Found pending order:", orderNo);
-                  // Redirect to self with order number to trigger server-side check
-                  window.location.href = `/callback?out_trade_no=${orderNo}`;
-                  // Clear it to prevent loop if check fails, but maybe keep it until success?
-                  // For now, let's keep it until verified or manual clear.
-                  sessionStorage.removeItem('pending_order_no'); 
-              } else {
-                  // No order found locally either
-                  const container = document.getElementById('result-container');
-                  if (container) {
-                      container.innerHTML = `
-                      <div class="w-full rounded-3xl border border-red-200 bg-red-50 p-8 shadow-sm">
-                        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
-                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-8 w-8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </div>
-                        <h1 class="text-2xl font-bold text-red-800">未找到订单信息</h1>
-                        <p class="mt-2 text-red-700">无法验证支付状态，请联系客服。</p>
-                        <a href="/" class="mt-8 inline-block rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-red-700">返回首页</a>
-                      </div>`;
-                  }
-              }
+        // Clear pending_order_no after successful verification (if server rendered success)
+        const messageElement = document.querySelector('h1');
+        if (messageElement && messageElement.textContent === "支付成功") {
+          localStorage.removeItem('pending_order_no');
+        }
+
+        // Client-side enhancement for the manual lookup form
+        // Auto-redirect if there's a pending order stored in localStorage
+        const lookupForm = document.getElementById('order-lookup-form');
+        if (lookupForm) {
+          const orderNo = localStorage.getItem('pending_order_no');
+          if (orderNo) {
+              console.log("Found pending order in localStorage:", orderNo);
+              // Redirect to self with order number to trigger server-side check
+              // Do NOT clear localStorage here -- keep it until success page clears it
+              window.location.href = `/callback?out_trade_no=${encodeURIComponent(orderNo)}`;
           }
-        };
-        
-        checkSessionStorage();
+        }
       </script>
    </body>
  </html>

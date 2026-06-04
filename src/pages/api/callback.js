@@ -20,11 +20,21 @@ export const GET = async ({ request, locals }) => {
 
     // 1. Verify Signature
     const sign = params.sign;
-    const signType = params.sign_type;
     
-    if (!sign || !signType) {
+    if (!sign) {
+       // Sign missing — redirect browser to callback with out_trade_no for fallback query
        const outTradeNo = (params.out_trade_no || "").trim();
-       if (outTradeNo) {
+       if (isBrowser && outTradeNo) {
+          return Response.redirect(`${url.origin}/callback?out_trade_no=${encodeURIComponent(outTradeNo)}`, 302);
+       }
+       return new Response("fail", { status: 400 });
+    }
+
+    // Per API doc §3.3, sign_type is NOT included in notify params.
+    // If present (e.g., return URL), verify it's MD5; if absent, proceed.
+    if (params.sign_type && params.sign_type !== "MD5") {
+       const outTradeNo = (params.out_trade_no || "").trim();
+       if (isBrowser && outTradeNo) {
           return Response.redirect(`${url.origin}/callback?out_trade_no=${encodeURIComponent(outTradeNo)}`, 302);
        }
        return new Response("fail", { status: 400 });
@@ -33,7 +43,6 @@ export const GET = async ({ request, locals }) => {
     // Filter sign and sign_type, then sort and join
     const verifyParams = { ...params };
     delete verifyParams.sign;
-    delete verifyParams.signType; // In case it was passed differently, though usually sign_type
     delete verifyParams.sign_type;
 
     const keys = Object.keys(verifyParams).filter(k => verifyParams[k] !== '' && verifyParams[k] !== undefined).sort();
